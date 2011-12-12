@@ -1,0 +1,3 @@
+This is a simple tool to walk through each revision in the history of a git
+repository, run some command and collect the output. Currently, it is hardcoded
+to perform LaTeX word counting but could easily be adapted to do other stuff.
