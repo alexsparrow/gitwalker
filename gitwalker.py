@@ -58,11 +58,31 @@ def word_count(base, path):
         elif name is not None: results[name][k] = v
     return results
 
+def extract_wordcount(d):
+    fields = [
+        ("wordcount", "Words in text"),
+        ("wordsinheaders" ,"Words in headers"),
+        ("wordsincaptions" ,"Words in float captions"),
+        ("nheaders" ,"Number of headers"),
+        ("nfloats" ,"Number of floats"),
+        ("nmathinlines" ,"Number of math inlines"),
+        ("nmathdisplays" ,"Number of math displayed"),
+        ("filecount", "Files")
+        ]
+    out = {}
+    for x, y in fields:
+        try: out[x] = int(d[y])
+        except: out[x] = -1
+    return out
+
 def my_func(path, fname):
-    try: return word_count(path, fname)["total"]["Words in text"]
+    try: return extract_wordcount(word_count(path, fname)["total"])
     except CmdError,e:
         log("Command '%r' failed with %d", e.cmd, e.ret)
         log("Output: %s", e.out)
+        return {}
+    except:
+        log("Failed to get output of command")
         return {}
 
 if __name__ == "__main__":
