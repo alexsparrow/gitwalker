@@ -1,0 +1,118 @@
+#!/usr/bin/env python
+import datetime
+import json
+import optparse
+import sys
+import pprint
+
+from pylab import *
+import matplotlib
+import matplotlib.pyplot as plt
+import matplotlib.dates as mdates
+import matplotlib.mlab as mlab
+import matplotlib.cbook as cbook
+from matplotlib.dates import  DateFormatter, WeekdayLocator, HourLocator, \
+     DayLocator, MONDAY
+
+from util import log
+
+def setupCmdLine():
+    parser = optparse.OptionParser()
+    parser.add_option("--plot", action="append", type="str",
+                      default = [],
+                      nargs =3, dest = "plots", help="Read JSON file")
+    parser.add_option("--out", action="store", type="str",
+                      dest="out_path",
+                      default="out.pdf", help="Output file")
+    parser.add_option("--title", action="store", type="str",
+                      default="plot", help="Plot title")
+    parser.add_option("--xtitle", action="store", type="str",
+                      default="value", help="x-axis title")
+    return parser
+
+def read_data(value, fname, title, color):
+    d = json.load(open(fname,"r"))
+    dts = {}
+    for x in d.values():
+        dt = datetime.datetime.strptime(x["date"], "%d/%m/%Y")
+        cur = x["results"]
+        for comp in value.split("/"):
+            if comp in cur: cur = cur[comp]
+            else: continue
+        try:
+            val = convert(cur)
+            if not dt in dts or val > dts[dt]: dts[dt] = val
+        except Exception,e:
+            log("Couldn't convert: %s" % cur)
+
+
+    pprint.pprint(dts)
+    return {"data":sorted([(d, c) for d, c in dts.iteritems()], key=lambda x:x[0]),
+            "title":title,
+            "color":color}
+
+def convert(v):
+    if isinstance(v, basestring):
+        return int("".join(c for c in v if c.isdigit()))
+    else: return int(v)
+
+def plot(title, xtitle, outpath, *args):
+    monthdays = mdates.DayLocator(bymonthday = (1, 15))
+    monthdays2 = mdates.DayLocator(bymonthday = (1,))
+    mondays    = mdates.WeekdayLocator(byweekday=MONDAY)
+    alldays    = DayLocator()              # minor ticks on the days
+    weekFormatter = DateFormatter('%d/%m/%Y')  # Eg, Jan 12
+    dayFormatter = DateFormatter('%d')      # Eg, 12
+
+    # load a numpy record array from yahoo csv data with fields date,
+    # open, close, volume, adj_close from the mpl-data/example directory.
+    # The record array stores python datetime.date as an object array in
+    # the date column
+    # datafile = cbook.get_sample_data('goog.npy')
+    # r = np.load(datafile).view(np.recarray)
+
+    fig = plt.figure()
+    fig.suptitle(title)
+    fig.subplots_adjust(bottom=0.2)
+    ax = fig.add_subplot(111)
+    max_daterange = None
+    for d in args:
+        dates = [x[0] for x in d["data"]]
+        counts = [x[1] for x in d["data"]]
+        mindate, maxdate = min(dates), max(dates)
+        daterange = maxdate - mindate
+        if  max_daterange is None or daterange > max_daterange: max_daterange = daterange
+        ax.plot(dates, counts, color=d["color"], label=d["title"])
+
+    ax.grid()
+    handles, labels = ax.get_legend_handles_labels()
+    ax.legend(handles, labels, loc='upper left')
+    #ax.semilogy()
+    # format the ticks
+    if max_daterange.days > 200:
+        ax.xaxis.set_major_locator(monthdays2)
+    elif max_daterange.days > 100:
+        ax.xaxis.set_major_locator(monthdays)
+    else:
+        ax.xaxis.set_major_locator(mondays)
+    ax.xaxis.set_minor_locator(alldays)
+    ax.xaxis.set_major_formatter(weekFormatter)
+
+    # datemin = datetime.date(r.date.min().year, 1, 1)
+    # datemax = datetime.date(r.date.max().year+1, 1, 1)
+    # ax.set_xlim(datemin, datemax)
+    ax.xaxis_date()
+    ax.autoscale_view()
+    setp( gca().get_xticklabels(), rotation=45, horizontalalignment='right')
+    ax.set_xlabel("Date")
+    ax.set_ylabel(xtitle)
+    fig.savefig(outpath)
+
+if __name__ == "__main__":
+    parser = setupCmdLine()
+    opts, args = parser.parse_args()
+    data = [read_data(args[0], *p) for p in opts.plots]
+    if all([len(d["data"]) == 0 for d in data]):
+        log("No data found for value: %s" % args[0])
+        sys.exit(1)
+    plot(opts.title, opts.xtitle, opts.out_path, *data)
