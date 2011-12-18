@@ -1,3 +1,32 @@
 This is a simple tool to walk through each revision in the history of a git
-repository, run some command and collect the output. Currently, it is hardcoded
-to perform LaTeX word counting but could easily be adapted to do other stuff.
+repository, run some command and collect the output. Currently it supports two
+commands:
+* TeX word count using the bundled texcount.pl script
+* Working copy size (experimental)
+
+Quick Start
+---------------
+To word count a LaTeX project stored in git for all committed revisions
+
+./gitwalker.py --wordcount myfile.tex --out wordcount.json /path/to/project
+
+This will clone the repository at /path/to/project to a temporary directory
+before checking out each revision and running a word count on the file
+myfile.tex in the repository. The results will be output to wordcount.json
+
+If you commit some more revisions and you just want to word count the new ones,
+
+./gitwalker.py --in wordcount.json --wordcount myfile.tex --out wordcount.json /path/to/project
+
+There is an attached script to plot a number of such output files on the same
+axes using matplotlib. e.g.
+
+./plotter.py --plot file1.json me red --plot you.json you blue wordcount/wordcount
+
+Will plot the files file1.json and file2.json on the same axes using the
+specified labels and colours. The value will be dug out from the JSON file via
+the path format at the end of the command line - in this case wordcount/wordcount. One could also run
+
+./plotter.py --plot file1.json me red --plot you.json you blue wordcount/nfigures
+
+To plot the number of figures
