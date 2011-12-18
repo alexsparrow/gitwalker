@@ -1,22 +1,8 @@
 #!/usr/bin/env python2
-import subprocess, sys, os.path, json, copy, shutil, tempfile
+import subprocess, sys, os.path, json, copy, shutil, tempfile, pprint, optparse
+from tools import word_count, du
 from datetime import datetime
-
-class CmdError(Exception):
-    def __init__(self, ret, cmd, out): self.ret, self.cmd, self.out = ret, cmd, out
-
-def log(msg, *args):
-    print ">>> " + msg % args
-
-# Annoyingly need to be compatible with old Pythons so can't use
-# subprocess.check_output
-def get_output(cmds, *args, **kwargs):
-    kwargs["stdout"] = subprocess.PIPE
-    process = subprocess.Popen( cmds, *args, **kwargs)
-    output, unused_err = process.communicate()
-    retcode = process.poll()
-    if retcode: raise CmdError(retcode, cmds, output)
-    return output
+from util import log, CmdError, get_output
 
 def git_cmd(path, *args, **kwargs):
     repo = os.path.join(path, ".git")
@@ -40,75 +26,86 @@ def git_log(path):
 def git_checkout(path, commit):
     git_cmd(path, "checkout", commit, stderr=subprocess.PIPE)
 
-def word_count(base, path):
-    script_dir = os.path.dirname(os.path.realpath(__file__))
-    tex_count_path = os.path.join(script_dir, "texcount.pl")
-    out = get_output([tex_count_path, "-inc", path], cwd=base)
-    results = {}
-    name = None
-    for l in out.splitlines():
-        if not ":" in l: continue
-        k, v = l.split(":")[0].strip().rstrip(), l.split(":")[1].strip().rstrip()
-        if k in ["File", "Included file"]:
-            name = v
-            results[name] = {}
-        elif k == "File(s) total":
-            name = "total"
-            results[name] = {}
-        elif name is not None: results[name][k] = v
-    return results
 
-def extract_wordcount(d):
-    fields = [
-        ("wordcount", "Words in text"),
-        ("wordsinheaders" ,"Words in headers"),
-        ("wordsincaptions" ,"Words in float captions"),
-        ("nheaders" ,"Number of headers"),
-        ("nfloats" ,"Number of floats"),
-        ("nmathinlines" ,"Number of math inlines"),
-        ("nmathdisplays" ,"Number of math displayed"),
-        ("filecount", "Files")
-        ]
-    out = {}
-    for x, y in fields:
-        try: out[x] = int(d[y])
-        except: out[x] = -1
-    return out
-
-def my_func(path, fname):
-    try: return extract_wordcount(word_count(path, fname)["total"])
-    except CmdError,e:
-        log("Command '%r' failed with %d", e.cmd, e.ret)
-        log("Output: %s", e.out)
-        return {}
-    except:
-        log("Failed to get output of command")
-        return {}
+def setupCmdLine(cmds):
+    parser = optparse.OptionParser()
+    parser.add_option("--in", action="append", type="str",
+                      default = [],
+                      dest = "in_paths", help="Read JSON file")
+    parser.add_option("--out", action="store", type="str",
+                      dest="out_path",
+                      default="out.json", help="Output JSON file")
+    parser.add_option("--reload", action="store_true", help="Refetch info")
+    cmdgroup = optparse.OptionGroup(parser, "Commands", "Command codes")
+    for c in cmds:
+        opt = c.primary_opt()
+        opt.kwargs["default"] = None
+        opt.kwargs["dest"] = c.name
+        cmdgroup.add_option("--%s" % c.name, *opt.args, **opt.kwargs)
+    parser.add_option_group(cmdgroup)
+    return parser
 
 if __name__ == "__main__":
-    if len(sys.argv) < 4:
-        print "Usage: %s <git repository> <TeX path> <output file>" % os.path.basename(__file__)
-        sys.exit(-1)
-    git_repo = sys.argv[1]
-    tex_path = sys.argv[2]
-    out_path = sys.argv[3]
-    git_new = tempfile.mkdtemp()
-    log("Temp dir created: %s", git_new)
+    cmds = [word_count, du]
+    parser = setupCmdLine(cmds)
+    opts, args = parser.parse_args()
+    try: git_repo = args[0]
+    except:
+        parser.print_usage()
+        sys.exit(1)
+    runlist = []
+    for c in cmds:
+        runcmd = getattr(opts, c.name, None)
+        if runcmd:
+            runlist.append(c(runcmd))
+    if len(runlist) == 0:
+        print "Must specify a command to be run"
+        sys.exit(0)
+    out = {}
+    for in_path in opts.in_paths:
+        d = json.load(open(in_path, "r"))
+        for commit, vals in d.iteritems():
+            if not commit in out: out[commit] = vals
+            else: out[commit]["results"].update(vals["results"])
+
     try:
+        git_new = tempfile.mkdtemp()
+        log("Temp dir created: %s", git_new)
         log("Cloning repo: %s -> %s", git_repo, git_new)
         git_clone(git_repo, git_new)
-        outs = []
         commits = list(git_log(git_new))
         log("%d commits found" % len(commits))
-        for idx, x in enumerate(commits):
-            log("Checking out revision %s [%d/%d]", x["commit"], idx+1, len(commits))
-            git_checkout(git_new, x["commit"])
-            out = copy.deepcopy(x)
-            out["date"] = out["date"].strftime("%d/%m/%Y")
-            out["result"] = my_func(git_new, tex_path)
-            outs.append(out)
-            log("Result: %r", out["result"])
-        json.dump(outs, open(out_path, "w"), indent=1)
+        for idx, comm in enumerate(commits):
+            sha1 = comm["commit"]
+            if sha1 in out:
+                rec = out[sha1]
+            else:
+                rec = {
+                    "date" : comm["date"].strftime("%d/%m/%Y"),
+                    "author" : comm["author"],
+                    "results" : {}
+                }
+            if opts.reload: schedule = runlist
+            else: schedule = [cmd for cmd in runlist if cmd.name not in rec["results"]]
+            if len(schedule) == 0:
+                log("Skipping revision %s [%d/%d]", comm["commit"], idx+1, len(commits))
+                continue
+            log("Checking out revision %s [%d/%d]", comm["commit"], idx+1, len(commits))
+            git_checkout(git_new, sha1)
+
+            for cmd in schedule:
+                rec["results"][cmd.name] = {}
+                try: rec["results"][cmd.name] = cmd.run(git_new)
+                except CmdError,e:
+                    log("Command '%r' failed with %d", e.cmd, e.ret)
+                    log("Output: %s", e.out)
+                except Exception, e:
+                    log("Failed to get output of command: %r",e)
+                log("[%s] %s", cmd.name, pprint.pformat(rec["results"][cmd.name]))
+            out[sha1] = rec
+
+        log("Writing output file: %s", opts.out_path)
+        json.dump(out, open(opts.out_path, "w"), indent=1)
     except CmdError, e:
         print "Command '%r' failed with %d" % (e.cmd, e.ret)
     finally:
