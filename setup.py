@@ -20,6 +20,7 @@ setup(
     author = 'Alex Sparrow',
     author_email = 'alspar@gmail.com',
     packages = ['gitwalker'],
+    scripts = ["scripts/gitwalk_plot"],
     package_data = {"gitwalker":["bin/texcount.pl"]},
     install_requires = ['setuptools'],
     entry_points="""
