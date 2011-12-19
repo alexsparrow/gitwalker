@@ -7,8 +7,8 @@ output to a JSON file. Commands are specified in the form of Python classes.
 What can it do?
 -------------------
 Currently _gitwalker_ supports two built in commands:
- * A LaTeX word count
- * du disk usage command
+  * A LaTeX word count
+  * du disk usage command
 Its straightforward to add additional commands - see the file `tools.py`
 
 The included script `plotter.py` uses the
