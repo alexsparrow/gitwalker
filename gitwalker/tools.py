@@ -29,7 +29,7 @@ class WordCount(Cmd):
 
     @staticmethod
     def options():
-        return [Option(action="store", type="str", metavar="file")]
+        return [Option(action="store", type="str", metavar="FILE")]
 
     def __init__(self, fname, debug=False, *args,  **kwargs):
         self.fname = fname
@@ -84,7 +84,7 @@ class ShellCmd(Cmd):
         self.cmd = cmd
     @staticmethod
     def options():
-        return [Option(action="store", type="str")]
+        return [Option(action="store", type="str", metavar="CMD")]
     def run(self, path):
         oldpath = os.getcwd()
         os.chdir(path)
