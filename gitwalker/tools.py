@@ -1,36 +1,35 @@
 from util import log, get_output
 import os.path
 
-class Func:
-    def __init__(self, *args, **kwargs):
-        self.args = args
-        self.kwargs = kwargs
+class Option(object):
+    def __init__(self, name=None, *args, **kwargs):
+        self.name, self.args, self.kwargs = name, args, kwargs
 
 class Cmd(object):
-    def __init__(self, val): pass
-
-class CmdError(Exception):
-    def __init__(self, ret, cmd, out): self.ret, self.cmd, self.out = ret, cmd, out
-
-
-class du(Cmd):
-    name = "du"
+    def __init__(self, val):
+        pass
     @staticmethod
-    def primary_opt():
-        return Func(action="store_true", help="Disk Usage")
-    def run(self, path):
+    def options():
+        return [Option(action="store_true")]
+
+class DiskUsage(Cmd):
+    """ Size of your working tree """
+    name = "du"
+
+    def run(self, path, *args, **kwargs):
         out = get_output(["du", "-chs", "--exclude=.git", path])
         return out.splitlines()[-1].split()[0]
 
-class word_count(Cmd):
+class WordCount(Cmd):
+    """ Word count a TeX file """
     name = "wordcount"
+
     script_dir = os.path.dirname(os.path.realpath(__file__))
     tex_count_path = os.path.normpath(os.path.join(script_dir, "bin/texcount.pl"))
 
     @staticmethod
-    def primary_opt():
-        return Func(action="store", type="str", metavar="TEXFILE",
-                    help="Word count a TeX file")
+    def options():
+        return [Option(action="store", type="str", metavar="file")]
 
     def __init__(self, fname, debug=False, *args,  **kwargs):
         self.fname = fname
@@ -71,7 +70,26 @@ class word_count(Cmd):
         return out
 
     def run(self, path):
-        if not os.path.exists(os.path.join(path, self.fname)): raise IOError("Couldn't find TeX file: %s" % self.fname)
+        if not os.path.exists(os.path.join(path, self.fname)):
+            raise IOError("Couldn't find TeX file: %s" % self.fname)
         (out, wc) = self.word_count(path, self.fname)
-        if not "total" in wc: raise ValueError("Error parsing output: %s" % out)
+        if not "total" in wc:
+            raise ValueError("Error parsing output: %s" % out)
         else: return self.extract_wordcount(wc["total"])
+
+class ShellCmd(Cmd):
+    """ Execute a shell command """
+    name = "shell"
+    def __init__(self, cmd, *args, **kwargs):
+        self.cmd = cmd
+    @staticmethod
+    def options():
+        return [Option(action="store", type="str")]
+    def run(self, path):
+        oldpath = os.getcwd()
+        os.chdir(path)
+        try:
+            out = get_output(self.cmd, shell=True)
+            return out
+        finally:
+            os.chdir(oldpath)

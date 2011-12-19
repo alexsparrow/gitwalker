@@ -1,7 +1,7 @@
-import sys, json, shutil, tempfile, pprint, optparse, inspect
+import json, shutil, tempfile, pprint, optparse, inspect
 import tools
 from datetime import datetime
-from util import log, exit_msg
+from util import log, exit_msg, CmdError
 from git import git_clone, git_log, git_checkout
 
 def load_cmds(m):
@@ -22,10 +22,13 @@ def setupCmdLine(cmds):
     parser.add_option("--debug", action="store_true", help="Debug commands")
     cmdgroup = optparse.OptionGroup(parser, "Commands", "Command codes")
     for c in cmds:
-        opt = c.primary_opt()
-        opt.kwargs["default"] = None
-        opt.kwargs["dest"] = c.name
-        cmdgroup.add_option("--%s" % c.name, *opt.args, **opt.kwargs)
+        options = c.options()
+        options[0].kwargs["default"] = None
+        options[0].kwargs["dest"] = c.name
+        options[0].kwargs["help"] = c.__doc__
+        cmdgroup.add_option("--%s" % c.name, *options[0].args, **options[0].kwargs)
+        for opt in options[1:]:
+            cmdgroup.add_option("--%s-%s" % (c.name, opt.name), *opt.args, **opt.kwargs)
     parser.add_option_group(cmdgroup)
     return parser
 
@@ -77,11 +80,11 @@ def main():
             for cmd in schedule:
                 rec["results"][cmd.name] = {}
                 try: rec["results"][cmd.name] = cmd.run(git_new)
-                except tools.CmdError,e:
+                except CmdError,e:
                     log("Command '%r' failed with %d", e.cmd, e.ret)
                     log("Output: %s", e.out)
-                except Exception, e:
-                    log("Failed to get output of command: %r",e)
+               # except Exception, e:
+               #     log("Failed to get output of command: %r",e)
                 log("[%s] %s", cmd.name, pprint.pformat(rec["results"][cmd.name]))
             out[sha1] = rec
 

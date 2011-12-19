@@ -14,7 +14,7 @@ import matplotlib.cbook as cbook
 from matplotlib.dates import  DateFormatter, WeekdayLocator, HourLocator, \
      DayLocator, MONDAY
 
-from util import log
+from gitwalker.util import log
 
 def setupCmdLine():
     parser = optparse.OptionParser()
@@ -45,8 +45,6 @@ def read_data(value, fname, title, color):
         except Exception,e:
             log("Couldn't convert: %s" % cur)
 
-
-    pprint.pprint(dts)
     return {"data":sorted([(d, c) for d, c in dts.iteritems()], key=lambda x:x[0]),
             "title":title,
             "color":color}

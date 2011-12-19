@@ -1,7 +1,7 @@
 from setuptools import setup
 import os
 
-version = '0.1.1'
+version = '0.1.5'
 
 description = "A tool for collecting data from git repositories."
 cur_dir = os.path.dirname(__file__)

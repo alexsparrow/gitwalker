@@ -1,4 +1,5 @@
 import subprocess
+import sys
 
 def log(msg, *args):
     print ">>> " + msg % args
@@ -16,3 +17,6 @@ def get_output(cmds, *args, **kwargs):
     retcode = process.poll()
     if retcode: raise CmdError(retcode, cmds, output)
     return output
+
+class CmdError(Exception):
+    def __init__(self, ret, cmd, out): self.ret, self.cmd, self.out = ret, cmd, out
