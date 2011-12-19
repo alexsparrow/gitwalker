@@ -11,15 +11,18 @@ def load_cmds(m):
             and cls is not tools.Cmd]
 
 def setupCmdLine(cmds):
-    parser = optparse.OptionParser()
+    parser = optparse.OptionParser(usage="%prog [options] git_repo")
     parser.add_option("--in", action="append", type="str",
-                      default = [],
+                      default = [], metavar="FILES",
                       dest = "in_paths", help="Read JSON file")
     parser.add_option("--out", action="store", type="str",
-                      dest="out_path",
+                      dest="out_path", metavar="FILE",
                       default="out.json", help="Output JSON file")
     parser.add_option("--reload", action="store_true", help="Refetch info")
     parser.add_option("--debug", action="store_true", help="Debug commands")
+    parser.add_option("--update", action="store", type="str", default=None,
+                      metavar="FILE", help="Update JSON file")
+
     cmdgroup = optparse.OptionGroup(parser, "Commands", "Command codes")
     for c in cmds:
         options = c.options()
@@ -46,7 +49,13 @@ def main():
     if len(runlist) == 0: exit_msg("Must specify a command to be run")
 
     out = {}
-    for in_path in opts.in_paths:
+    if opts.update:
+        in_paths = out_paths = [opts.update]
+    else:
+        in_paths = opt.in_paths
+        out_paths = opt.out_paths
+
+    for in_path in in_paths:
         d = json.load(open(in_path, "r"))
         for commit, vals in d.iteritems():
             if not commit in out: out[commit] = vals
@@ -57,9 +66,18 @@ def main():
         log("Temp dir created: %s", git_new)
         log("Cloning repo: %s -> %s", git_repo, git_new)
         git_clone(git_repo, git_new)
-        commits = list(git_log(git_new))
-        log("%d commits found" % len(commits))
-        for idx, comm in enumerate(commits):
+
+        skip = []
+        process =[]
+        for comm in git_log(git_new):
+            if comm["commit"] in out and all([c.name in out[comm["commit"]]["results"] for c in runlist]):
+                skip.append(comm)
+            else: process.append(comm)
+
+        log("%d commits: processing %d, skipping %d" % (len(skip)+len(process),
+                                                        len(process),
+                                                        len(skip)))
+        for idx, comm in enumerate(process):
             sha1 = comm["commit"]
             if sha1 in out:
                 rec = out[sha1]
@@ -71,9 +89,6 @@ def main():
                 }
             if opts.reload: schedule = runlist
             else: schedule = [cmd for cmd in runlist if cmd.name not in rec["results"]]
-            if len(schedule) == 0:
-                log("Skipping revision %s [%d/%d]", comm["commit"], idx+1, len(commits))
-                continue
             log("Checking out revision %s [%d/%d]", comm["commit"], idx+1, len(commits))
             git_checkout(git_new, sha1)
 
