@@ -3,6 +3,10 @@ import subprocess
 def log(msg, *args):
     print ">>> " + msg % args
 
+def exit_msg(msg, code=0):
+    print msg
+    sys.exit(code)
+
 # Annoyingly need to be compatible with old Pythons so can't use
 # subprocess.check_output
 def get_output(cmds, *args, **kwargs):

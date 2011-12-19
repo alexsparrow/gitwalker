@@ -1,7 +1,7 @@
 import sys, json, shutil, tempfile, pprint, optparse, inspect
 import tools
 from datetime import datetime
-from util import log
+from util import log, exit_msg
 from git import git_clone, git_log, git_checkout
 
 def load_cmds(m):
@@ -9,9 +9,6 @@ def load_cmds(m):
             if inspect.isclass(cls) and
             issubclass(cls, tools.Cmd)
             and cls is not tools.Cmd]
-
-
-
 
 def setupCmdLine(cmds):
     parser = optparse.OptionParser()
@@ -37,17 +34,14 @@ def main():
     parser = setupCmdLine(cmds)
     opts, args = parser.parse_args()
     try: git_repo = args[0]
-    except:
-        parser.print_usage()
-        sys.exit(1)
+    except: exit_msg(parser.get_usage())
 
     runlist = [cmd(primary_opt, debug=opts.debug)
                for cmd, primary_opt in zip(cmds, map(lambda x: getattr(opts, x.name, None), cmds))
                if primary_opt]
 
-    if len(runlist) == 0:
-        print "Must specify a command to be run"
-        sys.exit(0)
+    if len(runlist) == 0: exit_msg("Must specify a command to be run")
+
     out = {}
     for in_path in opts.in_paths:
         d = json.load(open(in_path, "r"))
@@ -93,8 +87,6 @@ def main():
 
         log("Writing output file: %s", opts.out_path)
         json.dump(out, open(opts.out_path, "w"), indent=1)
-    except CmdError, e:
-        print "Command '%r' failed with %d" % (e.cmd, e.ret)
     finally:
         log("Tidying temp dir: %s", git_new)
         shutil.rmtree(git_new)

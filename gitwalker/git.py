@@ -5,11 +5,18 @@ from datetime import datetime
 from util import get_output
 
 def git_cmd(path, *args, **kwargs):
-    repo = os.path.join(path, ".git")
-    return get_output(["git", "--git-dir", repo, "--work-tree", path]+list(args), **kwargs)
+    if path:
+        repo = os.path.join(path, ".git")
+        cmds = ["git", "--git-dir", repo, "--work-tree", path] + list(args)
+    else: cmds = ["git"] + list(args)
+    try: return get_output(cmds, **kwargs)
+    except CmdError,e:
+        log("Error running git command: %r", e.cmd)
+        log("Failure with code: %d", e.ret)
+        raise
 
 def git_clone(path, target):
-    get_output(["git", "clone", path, target])
+    git_cmd(None, "clone", path, target)
 
 def git_log(path):
     outp = git_cmd(path, "rev-list", "--date=iso", "--all", "--pretty=medium")
