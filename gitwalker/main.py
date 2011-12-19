@@ -49,11 +49,13 @@ def main():
     if len(runlist) == 0: exit_msg("Must specify a command to be run")
 
     out = {}
+
     if opts.update:
-        in_paths = out_paths = [opts.update]
+        in_paths = [opts.update]
+        out_path = opts.update
     else:
         in_paths = opt.in_paths
-        out_paths = opt.out_paths
+        out_path = opt.out_path
 
     for in_path in in_paths:
         d = json.load(open(in_path, "r"))
@@ -79,16 +81,16 @@ def main():
                                                         len(skip)))
         for idx, comm in enumerate(process):
             sha1 = comm["commit"]
-            if sha1 in out:
-                rec = out[sha1]
-            else:
-                rec = {
-                    "date" : comm["date"].strftime("%d/%m/%Y"),
-                    "author" : comm["author"],
-                    "results" : {}
+            rec = {
+                "date" : comm["date"].strftime("%d/%m/%Y"),
+                "author" : comm["author"]
                 }
+            if sha1 in out and "results" in out[sha1]: rec["results"] = out[sha1]
+            else: rec["results"] = {}
+
             if opts.reload: schedule = runlist
             else: schedule = [cmd for cmd in runlist if cmd.name not in rec["results"]]
+
             log("Checking out revision %s [%d/%d]", comm["commit"], idx+1, len(commits))
             git_checkout(git_new, sha1)
 
@@ -98,8 +100,8 @@ def main():
                 except CmdError,e:
                     log("Command '%r' failed with %d", e.cmd, e.ret)
                     log("Output: %s", e.out)
-               # except Exception, e:
-               #     log("Failed to get output of command: %r",e)
+                except Exception, e:
+                    log("Failed to get output of command: %r",e)
                 log("[%s] %s", cmd.name, pprint.pformat(rec["results"][cmd.name]))
             out[sha1] = rec
 
