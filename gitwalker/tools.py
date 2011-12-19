@@ -1,9 +1,6 @@
 from util import log, get_output
 import os.path
 
-script_dir = os.path.dirname(os.path.realpath(__file__))
-tex_count_path = os.path.normpath(os.path.join(script_dir, "bin/texcount.pl"))
-
 class Func:
     def __init__(self, *args, **kwargs):
         self.args = args
@@ -27,6 +24,8 @@ class du(Cmd):
 
 class word_count(Cmd):
     name = "wordcount"
+    script_dir = os.path.dirname(os.path.realpath(__file__))
+    tex_count_path = os.path.normpath(os.path.join(script_dir, "bin/texcount.pl"))
 
     @staticmethod
     def primary_opt():
@@ -36,8 +35,9 @@ class word_count(Cmd):
     def __init__(self, fname, debug=False, *args,  **kwargs):
         self.fname = fname
         self.debug = debug
+
     def word_count(self, base, path):
-        out = get_output(["perl", tex_count_path, "-inc", path], cwd=base)
+        out = get_output(["perl", self.tex_count_path, "-inc", path], cwd=base)
         if self.debug: log("TeXCount: %s", out)
         results = {}
         name = None

@@ -1,8 +1,17 @@
-import sys, json, shutil, tempfile, pprint, optparse
-from tools import CmdError, word_count, du
+import sys, json, shutil, tempfile, pprint, optparse, inspect
+import tools
 from datetime import datetime
 from util import log
 from git import git_clone, git_log, git_checkout
+
+def load_cmds(m):
+    return [cls for name, cls in inspect.getmembers(m)
+            if inspect.isclass(cls) and
+            issubclass(cls, tools.Cmd)
+            and cls is not tools.Cmd]
+
+
+
 
 def setupCmdLine(cmds):
     parser = optparse.OptionParser()
@@ -24,18 +33,18 @@ def setupCmdLine(cmds):
     return parser
 
 def main():
-    cmds = [word_count, du]
+    cmds = load_cmds(tools)
     parser = setupCmdLine(cmds)
     opts, args = parser.parse_args()
     try: git_repo = args[0]
     except:
         parser.print_usage()
         sys.exit(1)
-    runlist = []
-    for c in cmds:
-        runcmd = getattr(opts, c.name, None)
-        if runcmd:
-            runlist.append(c(runcmd, debug=opts.debug))
+
+    runlist = [cmd(primary_opt, debug=opts.debug)
+               for cmd, primary_opt in zip(cmds, map(lambda x: getattr(opts, x.name, None), cmds))
+               if primary_opt]
+
     if len(runlist) == 0:
         print "Must specify a command to be run"
         sys.exit(0)
@@ -74,7 +83,7 @@ def main():
             for cmd in schedule:
                 rec["results"][cmd.name] = {}
                 try: rec["results"][cmd.name] = cmd.run(git_new)
-                except CmdError,e:
+                except tools.CmdError,e:
                     log("Command '%r' failed with %d", e.cmd, e.ret)
                     log("Output: %s", e.out)
                 except Exception, e:
