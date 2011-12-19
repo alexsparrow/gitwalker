@@ -10,6 +10,7 @@ Currently _gitwalker_ supports two built in commands:
 
  * A LaTeX word count
  * du disk usage command
+ * Arbitrary shell commands
 
 Its straightforward to add additional commands - see the file `tools.py`
 
