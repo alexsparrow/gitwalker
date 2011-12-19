@@ -1,5 +1,8 @@
-from util import log, CmdError, get_output
+from util import log, get_output
 import os.path
+
+script_dir = os.path.dirname(os.path.realpath(__file__))
+tex_count_path = os.path.normpath(os.path.join(script_dir, "bin/texcount.pl"))
 
 class Func:
     def __init__(self, *args, **kwargs):
@@ -8,6 +11,10 @@ class Func:
 
 class Cmd(object):
     def __init__(self, val): pass
+
+class CmdError(Exception):
+    def __init__(self, ret, cmd, out): self.ret, self.cmd, self.out = ret, cmd, out
+
 
 class du(Cmd):
     name = "du"
@@ -26,13 +33,12 @@ class word_count(Cmd):
         return Func(action="store", type="str", metavar="TEXFILE",
                     help="Word count a TeX file")
 
-    def __init__(self, fname):
+    def __init__(self, fname, debug=False, *args,  **kwargs):
         self.fname = fname
-
+        self.debug = debug
     def word_count(self, base, path):
-        script_dir = os.path.dirname(os.path.realpath(__file__))
-        tex_count_path = os.path.join(script_dir, "texcount.pl")
-        out = get_output([tex_count_path, "-inc", path], cwd=base)
+        out = get_output(["perl", tex_count_path, "-inc", path], cwd=base)
+        if self.debug: log("TeXCount: %s", out)
         results = {}
         name = None
         for l in out.splitlines():
@@ -45,7 +51,7 @@ class word_count(Cmd):
                 name = "total"
                 results[name] = {}
             elif name is not None: results[name][k] = v
-        return results
+        return (out, results)
 
     def extract_wordcount(self, d):
         fields = [
@@ -65,4 +71,7 @@ class word_count(Cmd):
         return out
 
     def run(self, path):
-        return self.extract_wordcount(self.word_count(path, self.fname)["total"])
+        if not os.path.exists(os.path.join(path, self.fname)): raise IOError("Couldn't find TeX file: %s" % self.fname)
+        (out, wc) = self.word_count(path, self.fname)
+        if not "total" in wc: raise ValueError("Error parsing output: %s" % out)
+        else: return self.extract_wordcount(wc["total"])

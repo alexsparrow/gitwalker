@@ -1,8 +1,5 @@
 import subprocess
 
-class CmdError(Exception):
-    def __init__(self, ret, cmd, out): self.ret, self.cmd, self.out = ret, cmd, out
-
 def log(msg, *args):
     print ">>> " + msg % args
 
