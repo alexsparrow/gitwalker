@@ -35,7 +35,7 @@ myfile.tex in the repository. The results will be output to the file `wordcount.
 
 *gitwalker* also supports incremental update of a previously produced log file. To add newly committed revisions,
 
-    gitwalk --in wordcount.json --wordcount myfile.tex --out wordcount.json /path/to/project
+    gitwalk --update wordcount.json --wordcount myfile.tex /path/to/project
 
 There is an attached script to plot a number of such output files on the same
 axes using matplotlib. e.g.
@@ -50,7 +50,10 @@ the path format at the end of the command line - in this case `wordcount/wordcou
 
 to plot the number of LaTeX figures present in each commit.
 
+To run a shell command on each commit,
+
+    gitwalk --shell="ls | wc -l" /path/to/project
+
 Todo
 --------------------
 * Add git-notes option
-* Shell command plugin
