@@ -91,7 +91,7 @@ def main():
             if opts.reload: schedule = runlist
             else: schedule = [cmd for cmd in runlist if cmd.name not in rec["results"]]
 
-            log("Checking out revision %s [%d/%d]", comm["commit"], idx+1, len(commits))
+            log("Checking out revision %s [%d/%d]", comm["commit"], idx+1, len(process))
             git_checkout(git_new, sha1)
 
             for cmd in schedule:
