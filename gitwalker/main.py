@@ -54,8 +54,8 @@ def main():
         in_paths = [opts.update]
         out_path = opts.update
     else:
-        in_paths = opt.in_paths
-        out_path = opt.out_path
+        in_paths = opts.in_paths
+        out_path = opts.out_path
 
     for in_path in in_paths:
         d = json.load(open(in_path, "r"))
