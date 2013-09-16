@@ -105,8 +105,8 @@ def main():
                 log("[%s] %s", cmd.name, pprint.pformat(rec["results"][cmd.name]))
             out[sha1] = rec
 
-        log("Writing output file: %s", opts.out_path)
-        json.dump(out, open(opts.out_path, "w"), indent=1)
+        log("Writing output file: %s", out_path)
+        json.dump(out, open(out_path, "w"), indent=1)
     finally:
         log("Tidying temp dir: %s", git_new)
         shutil.rmtree(git_new)
