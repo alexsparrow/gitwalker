@@ -73,9 +73,12 @@ class WordCount(Cmd):
         if not os.path.exists(os.path.join(path, self.fname)):
             raise IOError("Couldn't find TeX file: %s" % self.fname)
         (out, wc) = self.word_count(path, self.fname)
-        if not "total" in wc:
+        if "total" in wc:
+            return self.extract_wordcount(wc["total"])
+        elif len(wc) == 1:
+            return self.extract_wordcount(wc[wc.keys()[0]])
+        else:
             raise ValueError("Error parsing output: %s" % out)
-        else: return self.extract_wordcount(wc["total"])
 
 class ShellCmd(Cmd):
     """ Execute a shell command """
