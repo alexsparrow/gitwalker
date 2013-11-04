@@ -1,5 +1,6 @@
 import subprocess
 import os.path
+from util import log, CmdError
 from datetime import datetime
 
 from util import get_output
